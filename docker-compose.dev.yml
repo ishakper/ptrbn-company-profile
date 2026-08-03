@@ -1,0 +1,148 @@
+services:
+  rbn-nginx:
+    image: nginx:alpine
+    container_name: rbn-nginx
+    ports:
+      - "80:80"
+    networks:
+      - public-network
+      - frontend-network
+      - backend-network
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    restart: on-failure
+    depends_on:
+      - rbn-frontend
+      - rbn-backend
+
+  rbn-frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/node/Dockerfile.dev
+    container_name: rbn-frontend
+    networks:
+      - frontend-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost/api/v1
+    restart: on-failure
+
+  rbn-backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/php/Dockerfile.dev
+    container_name: rbn-backend
+    networks:
+      - backend-network
+      - db-network
+      - telemetry-network
+    volumes:
+      - ./backend:/var/www
+      - storage_data:/var/www/storage
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_CONNECTION=pgsql
+      - DB_HOST=rbn-postgres
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-rbn_prod}
+      - DB_USERNAME=${DB_USERNAME:-db_user}
+      - DB_PASSWORD=${DB_PASSWORD:-db_password}
+      - REDIS_HOST=rbn-redis
+      - REDIS_PORT=6379
+      - MAIL_MAILER=smtp
+      - MAIL_HOST=rbn-mailpit
+      - MAIL_PORT=1025
+    command: php artisan serve --host=0.0.0.0 --port=8000
+    restart: on-failure
+    depends_on:
+      - rbn-postgres
+      - rbn-redis
+
+  rbn-queue:
+    build:
+      context: ./backend
+      dockerfile: ../docker/php/Dockerfile.dev
+    container_name: rbn-queue
+    networks:
+      - backend-network
+      - db-network
+    volumes:
+      - ./backend:/var/www
+      - storage_data:/var/www/storage
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_CONNECTION=pgsql
+      - DB_HOST=rbn-postgres
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-rbn_prod}
+      - DB_USERNAME=${DB_USERNAME:-db_user}
+      - DB_PASSWORD=${DB_PASSWORD:-db_password}
+      - REDIS_HOST=rbn-redis
+      - REDIS_PORT=6379
+    command: php artisan queue:work --verbose --tries=3 --timeout=90
+    restart: on-failure
+    depends_on:
+      - rbn-postgres
+      - rbn-redis
+
+  rbn-postgres:
+    ports:
+      - "5432:5432"
+    restart: on-failure
+
+  rbn-redis:
+    ports:
+      - "6379:6379"
+    restart: on-failure
+
+  rbn-mailpit:
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: on-failure
+
+  rbn-adminer:
+    ports:
+      - "8080:8080"
+    restart: on-failure
+    depends_on:
+      - rbn-postgres
+
+  rbn-otel-collector:
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    restart: on-failure
+
+  rbn-jaeger:
+    ports:
+      - "16686:16686"
+    restart: on-failure
+
+  rbn-prometheus:
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    restart: on-failure
+
+  rbn-loki:
+    ports:
+      - "3100:3100"
+    restart: on-failure
+
+  rbn-grafana:
+    ports:
+      - "3000:3000"
+    restart: on-failure
+    depends_on:
+      - rbn-prometheus
+      - rbn-loki

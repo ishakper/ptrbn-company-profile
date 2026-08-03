@@ -1,0 +1,13 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Filament\Resources\VisionMissions\Pages;
+
+use App\Filament\Resources\VisionMissions\VisionMissionResource;
+use Filament\Resources\Pages\CreateRecord;
+
+class CreateVisionMission extends CreateRecord
+{
+    protected static string $resource = VisionMissionResource::class;
+}

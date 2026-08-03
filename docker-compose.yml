@@ -1,0 +1,154 @@
+networks:
+  public-network:
+    driver: bridge
+  frontend-network:
+    driver: bridge
+  backend-network:
+    driver: bridge
+  db-network:
+    driver: bridge
+  telemetry-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  storage_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+
+services:
+  rbn-postgres:
+    image: postgres:16-alpine
+    container_name: rbn-postgres
+    networks:
+      - db-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-rbn_prod}
+      POSTGRES_USER: ${DB_USERNAME:-db_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-db_password}
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-db_user} -d ${DB_DATABASE:-rbn_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rbn-redis:
+    image: redis:7-alpine
+    container_name: rbn-redis
+    command: redis-server --appendonly yes
+    networks:
+      - backend-network
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rbn-mailpit:
+    image: axllent/mailpit:latest
+    container_name: rbn-mailpit
+    networks:
+      - backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 256M
+
+  rbn-adminer:
+    image: adminer:latest
+    container_name: rbn-adminer
+    networks:
+      - db-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 256M
+
+  rbn-otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: rbn-otel-collector
+    networks:
+      - telemetry-network
+      - backend-network
+    volumes:
+      - ./monitoring/otel/otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  rbn-jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: rbn-jaeger
+    networks:
+      - telemetry-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  rbn-prometheus:
+    image: prom/prometheus:latest
+    container_name: rbn-prometheus
+    networks:
+      - telemetry-network
+    volumes:
+      - prometheus_data:/prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  rbn-loki:
+    image: grafana/loki:latest
+    container_name: rbn-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - telemetry-network
+    volumes:
+      - loki_data:/loki
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  rbn-grafana:
+    image: grafana/grafana:latest
+    container_name: rbn-grafana
+    networks:
+      - telemetry-network
+    volumes:
+      - grafana_data:/var/lib/grafana
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M

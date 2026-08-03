@@ -1,0 +1,16 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+
+    level: 1
+
+    reportUnmatchedIgnoredErrors: false
+
+    ignoreErrors:
+        - '#Access to an undefined property App\\Http\\Resources\\.*#'
+        - '#Call to an undefined method App\\Http\\Resources\\.*#'
+        - '#Unsafe usage of new static\(\)\.#'
+        - '#on an unknown class Filament\\.*#'

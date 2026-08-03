@@ -1,0 +1,82 @@
+services:
+  rbn-nginx:
+    image: nginx:alpine
+    container_name: rbn-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - public-network
+      - frontend-network
+      - backend-network
+    volumes:
+      - ./docker/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    restart: unless-stopped
+    depends_on:
+      - rbn-frontend
+      - rbn-backend
+
+  rbn-frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/node/Dockerfile.prod
+    container_name: rbn-frontend
+    networks:
+      - frontend-network
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+    restart: unless-stopped
+
+  rbn-backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/php/Dockerfile.prod
+    container_name: rbn-backend
+    networks:
+      - backend-network
+      - db-network
+      - telemetry-network
+    volumes:
+      - storage_data:/var/www/storage
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - DB_CONNECTION=pgsql
+      - DB_HOST=rbn-postgres
+      - DB_PORT=5432
+      - REDIS_HOST=rbn-redis
+      - REDIS_PORT=6379
+    restart: unless-stopped
+    depends_on:
+      - rbn-postgres
+      - rbn-redis
+
+  rbn-postgres:
+    restart: unless-stopped
+
+  rbn-redis:
+    restart: unless-stopped
+
+  rbn-otel-collector:
+    restart: unless-stopped
+
+  rbn-prometheus:
+    volumes:
+      - ./monitoring/prometheus/prometheus.prod.yml:/etc/prometheus/prometheus.yml:ro
+    restart: unless-stopped
+
+  rbn-loki:
+    restart: unless-stopped
+
+  rbn-grafana:
+    restart: unless-stopped
+    depends_on:
+      - rbn-prometheus
+      - rbn-loki

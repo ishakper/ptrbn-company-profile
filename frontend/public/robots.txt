@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Disallow private/admin areas
+Disallow: /admin/
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://rbn-group.com/sitemap.xml
