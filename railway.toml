@@ -3,7 +3,7 @@ builder = "NIXPACKS"
 buildCommand = "npm --prefix frontend install && npm --prefix frontend run build && composer --working-dir=backend install --no-dev --optimize-autoloader"
 
 [deploy]
-startCommand = "php backend/artisan migrate --force && php backend/artisan config:cache && php backend/artisan route:cache && php backend/artisan view:cache && php backend/artisan serve --host=0.0.0.0 --port=\"
+startCommand = "php backend/artisan migrate --force && php backend/artisan config:cache && php backend/artisan route:cache && php backend/artisan view:cache && php backend/artisan serve --host=0.0.0.0 --port=$PORT"
 healthcheckPath = "/up"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
