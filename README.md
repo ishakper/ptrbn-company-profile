@@ -62,3 +62,5 @@ cd frontend
 npm run build
 ```
 This builds and copies production assets directly into the public workspace folders.
+
+<!-- Railway Deploy Trigger: 2026-08-04 -->
