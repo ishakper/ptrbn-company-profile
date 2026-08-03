@@ -1,1 +1,0 @@
-web: php backend/artisan migrate --force && php backend/artisan config:cache && php backend/artisan route:cache && php backend/artisan view:cache && php backend/artisan serve --host=0.0.0.0 --port=$PORT
